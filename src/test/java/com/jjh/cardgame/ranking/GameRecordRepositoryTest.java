@@ -42,7 +42,7 @@ class GameRecordRepositoryTest {
         save("tieLater", 8, 10, 30_000);   // fast 와 완전히 같지만 나중에 등록
         save("otherLevel", 6, 1, 1_000);   // 다른 난이도는 섞이지 않음
 
-        List<String> names = repository.findByPairsOrderByMovesAscElapsedMillisAscIdAsc(8, PageRequest.of(0, 10))
+        List<String> names = repository.findByPairsAndFlaggedFalseOrderByMovesAscElapsedMillisAscIdAsc(8, PageRequest.of(0, 10))
                 .stream().map(GameRecord::getNickname).toList();
 
         assertThat(names).containsExactly("best", "fast", "tieLater", "slow");
@@ -66,7 +66,18 @@ class GameRecordRepositoryTest {
         for (int i = 0; i < 5; i++) {
             save("p" + i, 8, 10 + i, 1_000);
         }
-        assertThat(repository.findByPairsOrderByMovesAscElapsedMillisAscIdAsc(8, PageRequest.of(0, 3))).hasSize(3);
+        assertThat(repository.findByPairsAndFlaggedFalseOrderByMovesAscElapsedMillisAscIdAsc(8, PageRequest.of(0, 3))).hasSize(3);
+    }
+
+    @Test
+    void 봇_의심_기록은_랭킹과_순위_계산에서_빠진다() {
+        repository.saveAndFlush(new GameRecord(UUID.randomUUID().toString(), "bot", 8, 1, 10,
+                Instant.parse("2026-11-18T00:00:00Z"), "FAST_FLIP x9"));
+        GameRecord human = save("human", 8, 12, 20_000);
+
+        assertThat(repository.findByPairsAndFlaggedFalseOrderByMovesAscElapsedMillisAscIdAsc(8, PageRequest.of(0, 10)))
+                .extracting(GameRecord::getNickname).containsExactly("human");
+        assertThat(rank(human)).as("봇이 더 잘했어도 1위").isEqualTo(1);
     }
 
     private long rank(GameRecord r) {

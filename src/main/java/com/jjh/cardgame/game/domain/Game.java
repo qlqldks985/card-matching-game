@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
 /** 게임 한 판. 카드 배치와 진행 상태를 모두 서버에서 관리한다. */
@@ -22,6 +23,10 @@ public class Game {
     private Integer firstFlippedIndex; // 이번 턴에 먼저 뒤집은 카드
     private int moves;                 // 두 장을 비교한 횟수
     private int matchedPairs;
+
+    private final PlayTiming timing = new PlayTiming(); // 봇 탐지용 뒤집기 간격 기록
+    private Instant lastFlipAt;
+    private boolean lastWasMismatch;   // 직전 뒤집기가 짝이 틀린 두 번째 카드였는지
 
     public Game(String id, List<String> symbols, Random random) {
         this(id, symbols, random, Clock.systemUTC());
@@ -60,6 +65,9 @@ public class Game {
         if (startedAt == null) {
             startedAt = now;
         }
+        timing.record(lastFlipAt == null ? null : Duration.between(lastFlipAt, now), lastWasMismatch);
+        lastFlipAt = now;
+        lastWasMismatch = false;
 
         // 첫 번째 카드
         if (firstFlippedIndex == null) {
@@ -81,6 +89,8 @@ public class Game {
             if (matchedPairs == totalPairs()) {
                 finishedAt = now;
             }
+        } else {
+            lastWasMismatch = true;
         }
         return new FlipResult(index, card.getSymbol(), firstIndex, matched);
     }
@@ -115,6 +125,11 @@ public class Game {
             return Duration.ZERO;
         }
         return Duration.between(startedAt, finishedAt != null ? finishedAt : clock.instant());
+    }
+
+    /** 봇처럼 보이는 플레이였다면 그 이유 */
+    public synchronized Optional<String> suspicionReason() {
+        return timing.suspicionReason();
     }
 
     /** 마지막으로 카드를 뒤집은(또는 만든) 뒤 idle 이상 지났는지 */

@@ -5,6 +5,8 @@ import com.jjh.cardgame.game.service.GameService;
 import com.jjh.cardgame.ranking.domain.GameRecord;
 import com.jjh.cardgame.ranking.domain.GameRecordRepository;
 import com.jjh.cardgame.ranking.dto.RankingEntry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,8 @@ import java.util.List;
 public class RankingService {
 
     public static final int MAX_LIMIT = 50;
+
+    private static final Logger log = LoggerFactory.getLogger(RankingService.class);
 
     private final GameRecordRepository repository;
     private final GameService gameService;
@@ -40,8 +44,9 @@ public class RankingService {
             throw new IllegalStateException("아직 끝나지 않은 게임입니다.");
         }
 
+        String flagReason = game.suspicionReason().orElse(null);
         GameRecord record = new GameRecord(game.getId(), nickname.strip(), game.totalPairs(),
-                game.getMoves(), game.elapsed().toMillis(), clock.instant());
+                game.getMoves(), game.elapsed().toMillis(), clock.instant(), flagReason);
         try {
             repository.saveAndFlush(record);
         } catch (DataIntegrityViolationException e) {
@@ -50,6 +55,11 @@ public class RankingService {
         }
         gameService.remove(gameId); // 기록이 남았으니 메모리에서는 바로 지운다
 
+        if (record.isFlagged()) {
+            log.warn("봇 의심 기록을 랭킹에서 제외: recordId={}, gameId={}, reason={}",
+                    record.getId(), record.getGameId(), flagReason);
+            return RankingEntry.of(record, null);
+        }
         long ahead = repository.countAhead(record.getPairs(), record.getMoves(),
                 record.getElapsedMillis(), record.getId());
         return RankingEntry.of(record, (int) ahead + 1);
@@ -60,7 +70,7 @@ public class RankingService {
         if (limit < 1 || limit > MAX_LIMIT) {
             throw new IllegalArgumentException("limit 은 1~" + MAX_LIMIT + " 사이여야 합니다.");
         }
-        List<GameRecord> records = repository.findByPairsOrderByMovesAscElapsedMillisAscIdAsc(
+        List<GameRecord> records = repository.findByPairsAndFlaggedFalseOrderByMovesAscElapsedMillisAscIdAsc(
                 pairs, PageRequest.of(0, limit));
         List<RankingEntry> result = new ArrayList<>(records.size());
         for (int i = 0; i < records.size(); i++) {

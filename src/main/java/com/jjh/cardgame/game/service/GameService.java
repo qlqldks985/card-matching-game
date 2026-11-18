@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,13 +32,18 @@ public class GameService {
     // 진행 중인 게임은 메모리에 보관하고, 끝난 게임의 결과만 DB에 저장한다
     private final Map<String, Game> games = new ConcurrentHashMap<>();
     private final Random random = new SecureRandom();
+    private final Clock clock;
+
+    public GameService(Clock clock) {
+        this.clock = clock;
+    }
 
     public Game create(Integer pairs) {
         int count = pairs != null ? pairs : DEFAULT_PAIRS;
         List<String> pool = new ArrayList<>(SYMBOLS);
         Collections.shuffle(pool, random);
 
-        Game game = new Game(UUID.randomUUID().toString(), pool.subList(0, count), random);
+        Game game = new Game(UUID.randomUUID().toString(), pool.subList(0, count), random, clock);
         games.put(game.getId(), game);
         return game;
     }
@@ -70,10 +76,5 @@ public class GameService {
 
     int activeGameCount() {
         return games.size();
-    }
-
-    /** 테스트용: 시계를 바꾼 게임을 직접 등록한다 */
-    void register(Game game) {
-        games.put(game.getId(), game);
     }
 }

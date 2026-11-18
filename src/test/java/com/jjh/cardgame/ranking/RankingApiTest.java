@@ -3,15 +3,23 @@ package com.jjh.cardgame.ranking;
 import com.jayway.jsonpath.JsonPath;
 import com.jjh.cardgame.game.domain.Game;
 import com.jjh.cardgame.game.service.GameService;
+import com.jjh.cardgame.ranking.domain.GameRecord;
 import com.jjh.cardgame.ranking.domain.GameRecordRepository;
 import com.jjh.cardgame.support.GameSolver;
+import com.jjh.cardgame.support.MutableClock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.Duration;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
@@ -23,6 +31,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 class RankingApiTest {
+
+    /** 테스트가 시간을 직접 흘릴 수 있도록 서버 시계를 바꿔 끼운다 */
+    @TestConfiguration
+    static class ClockOverride {
+        @Bean
+        @Primary
+        MutableClock testClock() {
+            return new MutableClock(Instant.parse("2026-11-18T00:00:00Z"));
+        }
+    }
+
+    @Autowired
+    MutableClock clock;
 
     @Autowired
     MockMvc mvc;
@@ -47,7 +68,15 @@ class RankingApiTest {
         return JsonPath.read(body, "$.gameId");
     }
 
+    /** 사람 속도(카드마다 1초)로 끝낸 게임 */
     private String finishedGame(int pairs) throws Exception {
+        String id = newGame(pairs);
+        GameSolver.solve(gameService.find(id), clock, Duration.ofSeconds(1));
+        return id;
+    }
+
+    /** 시간 흐름 없이 곧바로 끝낸 게임 (봇) */
+    private String botFinishedGame(int pairs) throws Exception {
         String id = newGame(pairs);
         GameSolver.solve(gameService.find(id));
         return id;
@@ -67,6 +96,7 @@ class RankingApiTest {
         submit(id, " 여우_01 ")
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.rank").value(1))
+                .andExpect(jsonPath("$.excluded").value(false))
                 .andExpect(jsonPath("$.nickname").value("여우_01"))
                 .andExpect(jsonPath("$.pairs").value(4))
                 .andExpect(jsonPath("$.moves").value(game.getMoves()));
@@ -115,6 +145,26 @@ class RankingApiTest {
         mvc.perform(get("/api/rankings").param("pairs", "2"))
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].nickname").value("easy"));
+    }
+
+    @Test
+    void 봇처럼_푼_기록은_저장하되_랭킹에서_뺀다() throws Exception {
+        submit(finishedGame(4), "human").andExpect(status().isCreated());
+
+        submit(botFinishedGame(4), "bot")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.excluded").value(true))
+                .andExpect(jsonPath("$.rank").doesNotExist())
+                .andExpect(jsonPath("$.flagReason").doesNotExist());   // 이유는 알려 주지 않는다
+
+        mvc.perform(get("/api/rankings").param("pairs", "4"))
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].nickname").value("human"));
+
+        GameRecord saved = repository.findAll().stream()
+                .filter(r -> r.getNickname().equals("bot")).findFirst().orElseThrow();
+        assertThat(saved.isFlagged()).isTrue();
+        assertThat(saved.getFlagReason()).contains("FAST_FLIP");
     }
 
     @Test

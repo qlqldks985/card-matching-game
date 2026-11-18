@@ -1,6 +1,7 @@
 // 카드 짝 맞추기 - 클라이언트
 // 카드의 그림은 서버만 알고 있다. 클라이언트는 카드를 뒤집을 때마다 서버에 물어본다.
 
+// 틀린 카드를 보여 주는 시간. 서버의 봇 탐지(PlayTiming.MISMATCH_COOLDOWN)가 이 값을 기준으로 하므로 줄이지 말 것
 const MISMATCH_DELAY_MS = 800;
 
 const boardEl = document.getElementById('board');
@@ -195,8 +196,13 @@ recordForm.addEventListener('submit', async (event) => {
         const r = await api(`/api/games/${gameId}/record`, { nickname });
         try { localStorage.setItem('cardgame.nickname', nickname); } catch (e) { /* 무시 */ }
         myRecordId = r.id;
-        recordMessage.textContent = `${LEVEL_NAMES[r.pairs] ?? r.pairs + '쌍'} ${r.rank}위로 등록됐어요!`;
-        recordMessage.classList.add('ok');
+        if (r.excluded) {
+            // 서버가 봇 같은 플레이로 판단 (이유는 알려 주지 않는다)
+            recordMessage.textContent = '비정상적인 플레이로 판단되어 랭킹에서 제외됐어요.';
+        } else {
+            recordMessage.textContent = `${LEVEL_NAMES[r.pairs] ?? r.pairs + '쌍'} ${r.rank}위로 등록됐어요!`;
+            recordMessage.classList.add('ok');
+        }
         loadRanking();
     } catch (e) {
         recordMessage.textContent = e.message;

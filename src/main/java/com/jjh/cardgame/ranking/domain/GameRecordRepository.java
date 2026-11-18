@@ -11,13 +11,17 @@ public interface GameRecordRepository extends JpaRepository<GameRecord, Long> {
 
     boolean existsByGameId(String gameId);
 
-    /** 순위: 시도 횟수가 적을수록, 같으면 시간이 짧을수록, 그것도 같으면 먼저 등록한 기록이 위 */
-    List<GameRecord> findByPairsOrderByMovesAscElapsedMillisAscIdAsc(int pairs, Pageable pageable);
+    /**
+     * 랭킹 (봇 의심 기록 제외).
+     * 순위: 시도 횟수가 적을수록, 같으면 시간이 짧을수록, 그것도 같으면 먼저 등록한 기록이 위
+     */
+    List<GameRecord> findByPairsAndFlaggedFalseOrderByMovesAscElapsedMillisAscIdAsc(int pairs, Pageable pageable);
 
-    /** 같은 난이도에서 이 기록보다 앞선 기록 수 (+1 하면 순위) */
+    /** 같은 난이도의 정상 기록 중 이 기록보다 앞선 기록 수 (+1 하면 순위) */
     @Query("""
             select count(r) from GameRecord r
             where r.pairs = :pairs
+              and r.flagged = false
               and (r.moves < :moves
                 or (r.moves = :moves and r.elapsedMillis < :elapsedMillis)
                 or (r.moves = :moves and r.elapsedMillis = :elapsedMillis and r.id < :id))

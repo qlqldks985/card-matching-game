@@ -18,7 +18,7 @@ import java.time.Instant;
 @Entity
 @Table(name = "game_record",
         uniqueConstraints = @UniqueConstraint(name = "uk_record_game_id", columnNames = "game_id"),
-        indexes = @Index(name = "idx_record_ranking", columnList = "pairs, moves, elapsed_millis"))
+        indexes = @Index(name = "idx_record_ranking", columnList = "pairs, flagged, moves, elapsed_millis"))
 public class GameRecord {
 
     @Id
@@ -45,17 +45,32 @@ public class GameRecord {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    /** 봇처럼 보이는 플레이. 기록은 남기되 랭킹에서는 뺀다 */
+    @Column(nullable = false)
+    private boolean flagged;
+
+    /** 의심한 이유 (운영자 확인용, 클라이언트에는 보내지 않는다) */
+    @Column(name = "flag_reason", length = 100)
+    private String flagReason;
+
     protected GameRecord() {
         // JPA
     }
 
     public GameRecord(String gameId, String nickname, int pairs, int moves, long elapsedMillis, Instant createdAt) {
+        this(gameId, nickname, pairs, moves, elapsedMillis, createdAt, null);
+    }
+
+    public GameRecord(String gameId, String nickname, int pairs, int moves, long elapsedMillis, Instant createdAt,
+                      String flagReason) {
         this.gameId = gameId;
         this.nickname = nickname;
         this.pairs = pairs;
         this.moves = moves;
         this.elapsedMillis = elapsedMillis;
         this.createdAt = createdAt;
+        this.flagged = flagReason != null;
+        this.flagReason = flagReason;
     }
 
     public Long getId() { return id; }
@@ -65,4 +80,6 @@ public class GameRecord {
     public int getMoves() { return moves; }
     public long getElapsedMillis() { return elapsedMillis; }
     public Instant getCreatedAt() { return createdAt; }
+    public boolean isFlagged() { return flagged; }
+    public String getFlagReason() { return flagReason; }
 }
