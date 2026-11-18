@@ -23,7 +23,7 @@
 | 구분 | 사용 기술 |
 |---|---|
 | Backend | Java 17, Spring Boot 4.1, Spring Web MVC, Spring Data JPA, Bean Validation |
-| Database | MySQL 8.0 (테스트는 H2 MySQL 모드) |
+| Database | MySQL 8.0, Flyway (테스트는 H2 MySQL 모드) |
 | Frontend | HTML, CSS, JavaScript (프레임워크 없음) |
 | Test | JUnit 5, AssertJ, MockMvc, `@DataJpaTest` |
 | Infra | Docker (멀티 스테이지 빌드), Docker Compose, GitHub Actions |
@@ -52,6 +52,11 @@
 
 ### 6. 시간을 다루는 코드도 테스트한다
 `Game`이 `Clock`을 주입받습니다. 그래서 "30분 방치", "첫 카드부터 시간 재기" 같은 시간 관련 동작을 실제로 기다리지 않고 테스트 시계로 검증합니다.
+
+### 7. 스키마는 Flyway로만 바꾼다
+테이블은 `src/main/resources/db/migration`의 버전 붙은 SQL(`V1__...sql`)로만 만들고 바꿉니다. Hibernate는 `ddl-auto=validate`로 엔티티와 테이블이 맞는지 **검사만** 합니다. 그래서 운영 DB가 예상하지 못한 방식으로 바뀌지 않고, 스키마 변경 이력이 코드와 함께 남습니다.
+- 테스트도 같은 SQL로 테이블을 만들고 `validate`를 거칩니다. 엔티티와 SQL이 어긋나면 CI에서 바로 실패합니다.
+- Flyway를 넣기 전에 Hibernate가 이미 테이블을 만들어 둔 DB는 `baseline-on-migrate`로 V1을 기준점 삼아 이어서 관리합니다. 기존 DB와 빈 DB 두 경우 모두 실제 MySQL에서 확인했습니다.
 
 ## 실행 방법
 
@@ -83,7 +88,7 @@ cd card-matching-game
 $env:DB_PASSWORD="MySQL root 비밀번호"; .\mvnw spring-boot:run
 ```
 
-브라우저에서 http://localhost:8080 을 엽니다.
+브라우저에서 http://localhost:8080 을 엽니다. 테이블은 처음 실행할 때 Flyway가 만듭니다.
 
 접속 정보는 아래 환경 변수로 바꿀 수 있습니다. 비밀번호를 코드에 넣지 않으려고 환경 변수를 씁니다.
 
@@ -146,7 +151,8 @@ src/main/java/com/jjh/cardgame
     ├── dto
     ├── service            # RankingService
     └── web                # RankingController
-src/main/resources/static  # index.html, css, js
+src/main/resources/static        # index.html, css, js
+src/main/resources/db/migration  # Flyway SQL (V1__create_game_record.sql)
 ```
 
 ## 테스트

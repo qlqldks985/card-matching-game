@@ -2,9 +2,11 @@ package com.jjh.cardgame.ranking;
 
 import com.jjh.cardgame.ranking.domain.GameRecord;
 import com.jjh.cardgame.ranking.domain.GameRecordRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.data.domain.PageRequest;
 
 import java.time.Instant;
@@ -14,10 +16,18 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+// 기본 내장 H2 로 바꿔 끼우지 않고, 설정 파일의 H2(MySQL 모드)를 써서 Flyway SQL 을 그대로 검증한다
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class GameRecordRepositoryTest {
 
     @Autowired
     GameRecordRepository repository;
+
+    // 같은 메모리 DB 를 다른 테스트 컨텍스트와 함께 쓰므로, 남아 있는 기록을 지우고 시작한다 (테스트 끝나면 롤백)
+    @BeforeEach
+    void clean() {
+        repository.deleteAll();
+    }
 
     private GameRecord save(String nickname, int pairs, int moves, long millis) {
         return repository.saveAndFlush(new GameRecord(UUID.randomUUID().toString(), nickname, pairs, moves, millis,
