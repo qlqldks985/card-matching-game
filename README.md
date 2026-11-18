@@ -5,6 +5,10 @@
 같은 그림의 카드 두 장을 찾아 뒤집는 기억력 게임입니다.
 **카드 배치와 판정을 모두 서버가 맡기 때문에** 브라우저 개발자 도구로 정답을 미리 볼 수 없고, 랭킹 기록도 조작할 수 없습니다.
 
+### 🎮 [지금 플레이하기 → card-matching-game-production.up.railway.app](https://card-matching-game-production.up.railway.app)
+
+Railway에 배포했습니다 (Docker 이미지 + MySQL). `main`에 푸시하면 자동으로 다시 배포됩니다.
+
 <p align="center">
   <img src="docs/images/gameplay.png" alt="게임 진행 화면과 난이도별 랭킹" width="480">
   &nbsp;
@@ -26,7 +30,7 @@
 | Database | MySQL 8.0, Flyway (테스트는 H2 MySQL 모드) |
 | Frontend | HTML, CSS, JavaScript (프레임워크 없음) |
 | Test | JUnit 5, AssertJ, MockMvc, `@DataJpaTest` |
-| Infra | Docker (멀티 스테이지 빌드), Docker Compose, GitHub Actions |
+| Infra | Docker (멀티 스테이지 빌드), Docker Compose, GitHub Actions, Railway (배포) |
 
 ## 설계 포인트
 
