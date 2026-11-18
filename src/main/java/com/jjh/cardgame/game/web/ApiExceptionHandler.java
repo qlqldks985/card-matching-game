@@ -1,6 +1,7 @@
 package com.jjh.cardgame.game.web;
 
 import com.jjh.cardgame.game.service.GameNotFoundException;
+import com.jjh.cardgame.ranking.service.DuplicateRecordException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -16,6 +17,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(GameNotFoundException.class)
     public ResponseEntity<Map<String, String>> notFound(GameNotFoundException e) {
         return error(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(DuplicateRecordException.class)
+    public ResponseEntity<Map<String, String>> conflict(DuplicateRecordException e) {
+        return error(HttpStatus.CONFLICT, e.getMessage());
     }
 
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})

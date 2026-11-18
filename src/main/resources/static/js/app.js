@@ -39,10 +39,10 @@ function selectLevel(value) {
 }
 
 async function api(path, body) {
-    const res = await fetch(path, {
+    const res = await fetch(path, body === undefined ? {} : {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body ?? {}),
+        body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -154,11 +154,89 @@ function stopTimer() {
     timerHandle = null;
 }
 
+function formatTime(ms) {
+    return `${(ms / 1000).toFixed(1)}초`;
+}
+
 function finish(r) {
     stopTimer();
     timerEl.textContent = `${r.elapsedSeconds}초`;
-    resultTextEl.textContent = `${r.moves}번 시도, ${r.elapsedSeconds}초 만에 모든 짝을 맞췄어요!`;
-    setTimeout(() => resultEl.classList.remove('hidden'), 500);
+    resultTextEl.textContent = `${r.moves}번 시도, ${formatTime(r.elapsedMillis)} 만에 모든 짝을 맞췄어요!`;
+    recordForm.classList.remove('hidden');
+    recordSubmit.disabled = false;
+    recordMessage.textContent = '';
+    recordMessage.classList.remove('ok');
+    setTimeout(() => {
+        resultEl.classList.remove('hidden');
+        nicknameInput.focus();
+    }, 500);
+}
+
+// ---- 기록 등록과 랭킹 ----
+
+const LEVEL_NAMES = { 6: '쉬움', 8: '보통', 12: '어려움' };
+const recordForm = document.getElementById('record-form');
+const recordSubmit = document.getElementById('record-submit');
+const recordMessage = document.getElementById('record-message');
+const nicknameInput = document.getElementById('nickname');
+const rankingBody = document.getElementById('ranking-body');
+const rankingEmpty = document.getElementById('ranking-empty');
+const rankingLevel = document.getElementById('ranking-level');
+let myRecordId = null;  // 방금 등록한 기록을 랭킹에서 강조
+
+try { nicknameInput.value = localStorage.getItem('cardgame.nickname') || ''; } catch (e) { /* 무시 */ }
+
+recordForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const nickname = nicknameInput.value.trim();
+    recordSubmit.disabled = true;
+    recordMessage.classList.remove('ok');
+    try {
+        const r = await api(`/api/games/${gameId}/record`, { nickname });
+        try { localStorage.setItem('cardgame.nickname', nickname); } catch (e) { /* 무시 */ }
+        myRecordId = r.id;
+        recordMessage.textContent = `${LEVEL_NAMES[r.pairs] ?? r.pairs + '쌍'} ${r.rank}위로 등록됐어요!`;
+        recordMessage.classList.add('ok');
+        loadRanking();
+    } catch (e) {
+        recordMessage.textContent = e.message;
+        recordSubmit.disabled = false;
+    }
+});
+
+let rankingRequest = 0;  // 난이도를 빠르게 바꿨을 때 늦게 온 이전 응답을 무시
+
+async function loadRanking() {
+    const request = ++rankingRequest;
+    const level = pairs;
+    rankingLevel.textContent = `· ${LEVEL_NAMES[level]} (${level}쌍)`;
+    try {
+        const list = await api(`/api/rankings?pairs=${level}&limit=10`);
+        if (request !== rankingRequest) return;
+        renderRanking(list);
+    } catch (e) {
+        if (request !== rankingRequest) return;
+        rankingBody.innerHTML = '';
+        rankingEmpty.textContent = `랭킹을 불러오지 못했어요: ${e.message}`;
+        rankingEmpty.classList.remove('hidden');
+    }
+}
+
+function renderRanking(list) {
+    rankingBody.innerHTML = '';
+    rankingEmpty.textContent = '아직 기록이 없어요. 첫 번째 주인공이 되어 보세요!';
+    rankingEmpty.classList.toggle('hidden', list.length > 0);
+    for (const entry of list) {
+        const row = document.createElement('tr');
+        if (entry.id === myRecordId) row.classList.add('mine');
+        const medal = ['🥇', '🥈', '🥉'][entry.rank - 1] ?? entry.rank;
+        for (const text of [medal, entry.nickname, `${entry.moves}번`, formatTime(entry.elapsedMillis)]) {
+            const cell = document.createElement('td');
+            cell.textContent = text;  // 닉네임을 HTML로 해석하지 않도록 textContent 사용
+            row.appendChild(cell);
+        }
+        rankingBody.appendChild(row);
+    }
 }
 
 levelButtons.forEach(b => b.addEventListener('click', () => {
@@ -166,6 +244,7 @@ levelButtons.forEach(b => b.addEventListener('click', () => {
     if (value === pairs) return;
     selectLevel(value);
     newGame();
+    loadRanking();
 }));
 
 document.getElementById('restart').addEventListener('click', newGame);
@@ -173,3 +252,4 @@ document.getElementById('play-again').addEventListener('click', newGame);
 
 selectLevel(pairs);
 newGame();
+loadRanking();

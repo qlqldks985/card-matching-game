@@ -56,6 +56,10 @@ public class GameService {
         return game;
     }
 
+    public void remove(String gameId) {
+        games.remove(gameId);
+    }
+
     /** 1분마다 방치된 게임을 정리한다. 지운 개수를 돌려준다. */
     @Scheduled(fixedDelay = 60_000)
     public int removeIdleGames() {

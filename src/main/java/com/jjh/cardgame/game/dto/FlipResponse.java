@@ -12,7 +12,8 @@ public record FlipResponse(
         int matchedPairs,
         int totalPairs,
         boolean finished,
-        long elapsedSeconds) {
+        long elapsedSeconds,
+        long elapsedMillis) {
 
     public static FlipResponse of(FlipResult result, Game game) {
         return new FlipResponse(
@@ -24,6 +25,7 @@ public record FlipResponse(
                 game.getMatchedPairs(),
                 game.totalPairs(),
                 game.isFinished(),
-                game.elapsed().toSeconds());
+                game.elapsed().toSeconds(),
+                game.elapsed().toMillis());
     }
 }

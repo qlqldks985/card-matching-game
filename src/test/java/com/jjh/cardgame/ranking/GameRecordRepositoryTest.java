@@ -1,0 +1,65 @@
+package com.jjh.cardgame.ranking;
+
+import com.jjh.cardgame.ranking.domain.GameRecord;
+import com.jjh.cardgame.ranking.domain.GameRecordRepository;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.data.domain.PageRequest;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DataJpaTest
+class GameRecordRepositoryTest {
+
+    @Autowired
+    GameRecordRepository repository;
+
+    private GameRecord save(String nickname, int pairs, int moves, long millis) {
+        return repository.saveAndFlush(new GameRecord(UUID.randomUUID().toString(), nickname, pairs, moves, millis,
+                Instant.parse("2026-11-18T00:00:00Z")));
+    }
+
+    @Test
+    void 시도_횟수_다음_시간_다음_등록_순서로_정렬한다() {
+        save("slow", 8, 10, 50_000);
+        save("fast", 8, 10, 30_000);
+        save("best", 8, 9, 90_000);
+        save("tieLater", 8, 10, 30_000);   // fast 와 완전히 같지만 나중에 등록
+        save("otherLevel", 6, 1, 1_000);   // 다른 난이도는 섞이지 않음
+
+        List<String> names = repository.findByPairsOrderByMovesAscElapsedMillisAscIdAsc(8, PageRequest.of(0, 10))
+                .stream().map(GameRecord::getNickname).toList();
+
+        assertThat(names).containsExactly("best", "fast", "tieLater", "slow");
+    }
+
+    @Test
+    void 순위_계산은_정렬_순서와_같다() {
+        save("best", 8, 9, 90_000);
+        GameRecord fast = save("fast", 8, 10, 30_000);
+        GameRecord tie = save("tieLater", 8, 10, 30_000);
+        GameRecord slow = save("slow", 8, 10, 50_000);
+        save("otherLevel", 6, 1, 1_000);
+
+        assertThat(rank(fast)).isEqualTo(2);
+        assertThat(rank(tie)).isEqualTo(3);
+        assertThat(rank(slow)).isEqualTo(4);
+    }
+
+    @Test
+    void 조회_개수를_제한한다() {
+        for (int i = 0; i < 5; i++) {
+            save("p" + i, 8, 10 + i, 1_000);
+        }
+        assertThat(repository.findByPairsOrderByMovesAscElapsedMillisAscIdAsc(8, PageRequest.of(0, 3))).hasSize(3);
+    }
+
+    private long rank(GameRecord r) {
+        return repository.countAhead(r.getPairs(), r.getMoves(), r.getElapsedMillis(), r.getId()) + 1;
+    }
+}

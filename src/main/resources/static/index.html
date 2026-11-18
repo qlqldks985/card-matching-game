@@ -27,12 +27,32 @@
     <p id="message" class="message" role="status"></p>
 
     <section id="board" class="board" aria-label="카드 판"></section>
+
+    <section class="ranking" aria-labelledby="ranking-title">
+        <h2 id="ranking-title">🏆 랭킹 <span id="ranking-level"></span></h2>
+        <table class="ranking-table">
+            <thead>
+            <tr><th>순위</th><th>닉네임</th><th>시도</th><th>시간</th></tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+        <p id="ranking-empty" class="ranking-empty hidden">아직 기록이 없어요. 첫 번째 주인공이 되어 보세요!</p>
+    </section>
 </main>
 
 <div id="result" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="result-title">
     <div class="modal">
         <h2 id="result-title">🎉 클리어!</h2>
         <p id="result-text"></p>
+        <form id="record-form" class="record-form">
+            <label for="nickname">랭킹에 이름 남기기</label>
+            <div class="record-row">
+                <input id="nickname" name="nickname" type="text" maxlength="12" autocomplete="nickname"
+                       placeholder="닉네임 (한글·영문·숫자·_ 12자)" required>
+                <button id="record-submit" class="btn" type="submit">등록</button>
+            </div>
+            <p id="record-message" class="record-message" role="status"></p>
+        </form>
         <button id="play-again" class="btn" type="button">다시 하기</button>
     </div>
 </div>
