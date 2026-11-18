@@ -14,4 +14,5 @@ RUN useradd --system --uid 1001 app
 COPY --from=build /workspace/app.jar app.jar
 USER app
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+# 컨테이너 메모리 한도의 75% 까지만 힙으로 쓴다 (무료 플랜처럼 메모리가 작은 곳에서 OOM 방지)
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]
