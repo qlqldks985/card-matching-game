@@ -1,5 +1,7 @@
 # 🃏 카드 짝 맞추기
 
+[![test](https://github.com/qlqldks985/card-matching-game/actions/workflows/test.yml/badge.svg)](https://github.com/qlqldks985/card-matching-game/actions/workflows/test.yml)
+
 같은 그림의 카드 두 장을 찾아 뒤집는 기억력 게임입니다.
 **카드 배치와 판정을 모두 서버가 맡기 때문에** 브라우저 개발자 도구로 정답을 미리 볼 수 없고, 랭킹 기록도 조작할 수 없습니다.
 
@@ -135,7 +137,7 @@ src/main/resources/static  # index.html, css, js
 .\mvnw test
 ```
 
-MySQL 없이 H2(MySQL 호환 모드)로 실행되며, 테스트는 21개입니다.
+MySQL 없이 H2(MySQL 호환 모드)로 실행되며, 테스트는 21개입니다. GitHub Actions가 푸시할 때마다 자동으로 실행합니다.
 
 | 테스트 | 검증하는 내용 |
 |---|---|
