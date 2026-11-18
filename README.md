@@ -26,6 +26,7 @@
 | Database | MySQL 8.0 (테스트는 H2 MySQL 모드) |
 | Frontend | HTML, CSS, JavaScript (프레임워크 없음) |
 | Test | JUnit 5, AssertJ, MockMvc, `@DataJpaTest` |
+| Infra | Docker (멀티 스테이지 빌드), Docker Compose, GitHub Actions |
 
 ## 설계 포인트
 
@@ -53,6 +54,23 @@
 `Game`이 `Clock`을 주입받습니다. 그래서 "30분 방치", "첫 카드부터 시간 재기" 같은 시간 관련 동작을 실제로 기다리지 않고 테스트 시계로 검증합니다.
 
 ## 실행 방법
+
+### 방법 1: Docker (추천)
+
+Docker만 있으면 됩니다. MySQL도 컨테이너로 같이 뜹니다.
+
+```bash
+docker compose up --build
+```
+
+브라우저에서 http://localhost:8080 을 엽니다. 기록은 `db-data` 볼륨에 남기 때문에 컨테이너를 내렸다 올려도 유지됩니다.
+
+- 앱은 MySQL 헬스체크가 통과한 뒤에 뜹니다 (`depends_on: service_healthy`).
+- 앱은 root가 아닌 전용 DB 계정과 root가 아닌 OS 사용자로 실행됩니다.
+- MySQL 포트는 호스트에 열지 않습니다. 그래서 PC에 설치된 MySQL과 충돌하지 않습니다.
+- 비밀번호나 포트를 바꾸려면 `.env.example`을 `.env`로 복사해서 고칩니다.
+
+### 방법 2: 직접 실행
 
 **준비물**: JDK 17, MySQL 8.0. Maven은 설치하지 않아도 됩니다(포함된 `mvnw` 사용).
 
