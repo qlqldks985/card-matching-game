@@ -3,9 +3,11 @@ package com.jjh.cardgame.game.service;
 import com.jjh.cardgame.game.domain.FlipResult;
 import com.jjh.cardgame.game.domain.Game;
 import com.jjh.cardgame.game.dto.FlipResponse;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -19,11 +21,14 @@ public class GameService {
 
     public static final int DEFAULT_PAIRS = 8;
 
+    /** 이 시간 동안 아무 카드도 뒤집지 않은 게임은 메모리에서 지운다 (끝난 게임 포함) */
+    static final Duration IDLE_TIMEOUT = Duration.ofMinutes(30);
+
     // Windows 10 기본 글꼴에서도 보이는 이모지만 사용 (🫐 같은 최신 이모지는 빈 네모로 표시됨)
     private static final List<String> SYMBOLS = List.of(
             "🍎", "🍌", "🍇", "🍓", "🍒", "🍑", "🍍", "🥝", "🍉", "🍋", "🥥", "🍐");
 
-    // 1단계: 진행 중인 게임은 메모리에 보관 (2단계에서 결과를 MySQL에 저장)
+    // 진행 중인 게임은 메모리에 보관하고, 끝난 게임의 결과만 DB에 저장한다
     private final Map<String, Game> games = new ConcurrentHashMap<>();
     private final Random random = new SecureRandom();
 
@@ -49,5 +54,22 @@ public class GameService {
             throw new GameNotFoundException(gameId);
         }
         return game;
+    }
+
+    /** 1분마다 방치된 게임을 정리한다. 지운 개수를 돌려준다. */
+    @Scheduled(fixedDelay = 60_000)
+    public int removeIdleGames() {
+        int before = games.size();
+        games.values().removeIf(game -> game.isIdleFor(IDLE_TIMEOUT));
+        return before - games.size();
+    }
+
+    int activeGameCount() {
+        return games.size();
+    }
+
+    /** 테스트용: 시계를 바꾼 게임을 직접 등록한다 */
+    void register(Game game) {
+        games.put(game.getId(), game);
     }
 }

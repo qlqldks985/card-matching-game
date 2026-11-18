@@ -1,5 +1,6 @@
 package com.jjh.cardgame.game.domain;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -12,15 +13,24 @@ public class Game {
 
     private final String id;
     private final List<Card> cards;
-    private final Instant startedAt = Instant.now();
+    private final Clock clock;
+
+    private Instant startedAt;      // 첫 카드를 뒤집은 시각 (화면 타이머와 같은 기준)
     private Instant finishedAt;
+    private Instant lastActivityAt; // 오래 방치된 게임을 정리할 때 쓴다
 
     private Integer firstFlippedIndex; // 이번 턴에 먼저 뒤집은 카드
     private int moves;                 // 두 장을 비교한 횟수
     private int matchedPairs;
 
     public Game(String id, List<String> symbols, Random random) {
+        this(id, symbols, random, Clock.systemUTC());
+    }
+
+    public Game(String id, List<String> symbols, Random random, Clock clock) {
         this.id = id;
+        this.clock = clock;
+        this.lastActivityAt = clock.instant();
         List<Card> deck = new ArrayList<>();
         for (String symbol : symbols) {
             deck.add(new Card(symbol));
@@ -41,6 +51,15 @@ public class Game {
         if (card.isMatched()) {
             throw new IllegalArgumentException("이미 짝을 맞춘 카드입니다.");
         }
+        if (firstFlippedIndex != null && firstFlippedIndex == index) {
+            throw new IllegalArgumentException("같은 카드를 두 번 뒤집을 수 없습니다.");
+        }
+
+        Instant now = clock.instant();
+        lastActivityAt = now;
+        if (startedAt == null) {
+            startedAt = now;
+        }
 
         // 첫 번째 카드
         if (firstFlippedIndex == null) {
@@ -49,9 +68,6 @@ public class Game {
         }
 
         // 두 번째 카드
-        if (firstFlippedIndex == index) {
-            throw new IllegalArgumentException("같은 카드를 두 번 뒤집을 수 없습니다.");
-        }
         int firstIndex = firstFlippedIndex;
         Card first = cards.get(firstIndex);
         firstFlippedIndex = null;
@@ -63,7 +79,7 @@ public class Game {
             card.markMatched();
             matchedPairs++;
             if (matchedPairs == totalPairs()) {
-                finishedAt = Instant.now();
+                finishedAt = now;
             }
         }
         return new FlipResult(index, card.getSymbol(), firstIndex, matched);
@@ -93,8 +109,16 @@ public class Game {
         return finishedAt != null;
     }
 
-    /** 게임 시작부터 종료(진행 중이면 현재)까지 걸린 시간 */
+    /** 첫 카드를 뒤집은 때부터 종료(진행 중이면 현재)까지 걸린 시간. 아직 시작 안 했으면 0 */
     public synchronized Duration elapsed() {
-        return Duration.between(startedAt, finishedAt != null ? finishedAt : Instant.now());
+        if (startedAt == null) {
+            return Duration.ZERO;
+        }
+        return Duration.between(startedAt, finishedAt != null ? finishedAt : clock.instant());
+    }
+
+    /** 마지막으로 카드를 뒤집은(또는 만든) 뒤 idle 이상 지났는지 */
+    public synchronized boolean isIdleFor(Duration idle) {
+        return Duration.between(lastActivityAt, clock.instant()).compareTo(idle) >= 0;
     }
 }
