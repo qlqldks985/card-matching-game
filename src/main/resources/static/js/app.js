@@ -15,6 +15,28 @@ let gameId = null;
 let busy = false;        // 서버 응답 대기 중이거나 틀린 카드를 보여주는 중
 let timerHandle = null;
 let startTime = null;
+let pairs = loadPairs();
+
+// 난이도 (짝 개수). 마지막으로 고른 난이도를 기억한다
+const levelButtons = document.querySelectorAll('.level');
+
+function loadPairs() {
+    try {
+        const saved = Number(localStorage.getItem('cardgame.pairs'));
+        if ([6, 8, 12].includes(saved)) return saved;
+    } catch (e) { /* 저장소를 못 쓰면 기본값 */ }
+    return 8;
+}
+
+function selectLevel(value) {
+    pairs = value;
+    try { localStorage.setItem('cardgame.pairs', String(value)); } catch (e) { /* 무시 */ }
+    levelButtons.forEach(b => {
+        const on = Number(b.dataset.pairs) === value;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-checked', on);
+    });
+}
 
 async function api(path, body) {
     const res = await fetch(path, {
@@ -34,7 +56,7 @@ async function newGame() {
     resultEl.classList.add('hidden');
     stopTimer();
     try {
-        const data = await api('/api/games', { pairs: 8 });
+        const data = await api('/api/games', { pairs });
         gameId = data.gameId;
         renderBoard(data.totalCards);
         updateStats({ moves: 0, matchedPairs: 0, totalPairs: data.totalCards / 2 });
@@ -48,6 +70,7 @@ async function newGame() {
 
 function renderBoard(totalCards) {
     boardEl.innerHTML = '';
+    boardEl.style.setProperty('--cols', totalCards > 16 ? 6 : 4);
     for (let i = 0; i < totalCards; i++) {
         const card = document.createElement('button');
         card.type = 'button';
@@ -138,7 +161,15 @@ function finish(r) {
     setTimeout(() => resultEl.classList.remove('hidden'), 500);
 }
 
+levelButtons.forEach(b => b.addEventListener('click', () => {
+    const value = Number(b.dataset.pairs);
+    if (value === pairs) return;
+    selectLevel(value);
+    newGame();
+}));
+
 document.getElementById('restart').addEventListener('click', newGame);
 document.getElementById('play-again').addEventListener('click', newGame);
 
+selectLevel(pairs);
 newGame();

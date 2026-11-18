@@ -18,6 +18,12 @@
         <button id="restart" class="btn" type="button">새 게임</button>
     </header>
 
+    <div class="difficulty" role="radiogroup" aria-label="난이도">
+        <button type="button" class="level" data-pairs="6" role="radio">쉬움 <small>6쌍</small></button>
+        <button type="button" class="level" data-pairs="8" role="radio">보통 <small>8쌍</small></button>
+        <button type="button" class="level" data-pairs="12" role="radio">어려움 <small>12쌍</small></button>
+    </div>
+
     <p id="message" class="message" role="status"></p>
 
     <section id="board" class="board" aria-label="카드 판"></section>

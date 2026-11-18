@@ -54,11 +54,26 @@ h1 { margin: 0; font-size: 1.6rem; }
 }
 .btn:hover { filter: brightness(1.08); }
 
+.difficulty { display: flex; gap: 8px; margin-top: 16px; }
+.level {
+    flex: 1;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    padding: 8px 0;
+    background: var(--surface);
+    color: var(--accent);
+    font-size: .95rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.level small { font-weight: 400; opacity: .8; }
+.level.active { background: var(--accent); color: #fff; }
+
 .message { min-height: 1.4em; margin: 12px 0; color: var(--error); font-size: .9rem; }
 
 .board {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(var(--cols, 4), 1fr);
     gap: 10px;
     perspective: 800px;
 }
@@ -91,7 +106,7 @@ h1 { margin: 0; font-size: 1.6rem; }
 .card .front {
     background: var(--surface);
     transform: rotateY(180deg);
-    font-size: clamp(1.8rem, 8vw, 2.8rem);
+    font-size: clamp(1.4rem, calc(32vw / var(--cols, 4)), 2.8rem);
 }
 .card.matched .front { outline: 3px solid var(--matched); }
 
